@@ -1,0 +1,37 @@
+#!/bin/bash
+backup_dir="/backup/"
+cur_date=$(LC_TIME=C date +%A)
+ip_pg=172.16.166.66
+port_pg=5432
+user=postgres
+password=pass
+for DataBaseName in $(su - postgres -c 'PGPASSWORD='$password' /opt/pgpro/1c-14/bin/psql -U '$user' --host '$ip_pg' -t -A -q -c "select datname from pg_database"');
+do
+#echo $DataBaseName
+#DataBaseName=buh_chistograd
+if [ -d $backup_dir/$DataBaseName/ ]
+then
+echo "directory exists $DataBaseName"
+else
+echo "create new catalog $DataBaseName"
+    mkdir $backup_dir/$DataBaseName/
+    chmod -R 7777 $backup_dir/$DataBaseName/
+fi
+
+if [ -d $backup_dir/$DataBaseName/week/ ]
+then
+echo "directory exists $DataBaseName/week/"
+else
+echo "create new catalog $DataBaseName/week/"
+    mkdir $backup_dir/$DataBaseName/week/
+    chmod -R 7777 $backup_dir/$DataBaseName/week/
+fi
+
+su - postgres -c 'PGPASSWORD='$password' /opt/pgpro/1c-14/bin/pg_dump --file '$backup_dir'/'$DataBaseName'/'$DataBaseName'-$(date +%d-%m-%y).backup --host '$ip_pg' --port '$port_pg' --username '$user' --format=c --blobs --compress "9" --dbname='$DataBaseName''
+/usr/bin/sudo /usr/bin/find $backup_dir/$DataBaseName/ -name "*-*" -type f -mtime +6 -exec rm -rf {} \;
+if [ "$cur_date" = "Monday" ]
+then
+mv $backup_dir/$DataBaseName/$DataBaseName-$(date +%d-%m-%y).backup $backup_dir/$DataBaseName/week/$DataBaseName_$(date +%d_%m_%y).backup
+/usr/bin/sudo /usr/bin/find $backup_dir/$DataBaseName/week/ -name "*_*" -type f -mtime +90 -exec rm -rf {} \;
+fi
+done
